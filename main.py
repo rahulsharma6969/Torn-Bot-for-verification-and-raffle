@@ -245,4 +245,41 @@ async def force_update(interaction: discord.Interaction):
     await interaction.followup.send(f"✅ Prices updated! Tracking {len(item_prices)} items.")
 
 
+@bot.tree.command(name="reset_raffle", description="Admin: Start a NEW raffle round (Flushes tickets).")
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_raffle(interaction: discord.Interaction):
+    # 1. Safety Check (Prevent accidental resets)
+    await interaction.response.send_message(
+        "⚠️ **WARNING: STARTING NEW RAFFLE** ⚠️\n"
+        "This will set all ticket counts to **0**.\n"
+        "It will NOT delete user links.\n\n"
+        "Type `CONFIRM` in this channel to proceed."
+    )
+
+    def check(m):
+        return m.author == interaction.user and m.content == "CONFIRM" and m.channel == interaction.channel
+
+    try:
+        # Wait 30 seconds for the user to type CONFIRM
+        await bot.wait_for("message", check=check, timeout=30.0)
+    except asyncio.TimeoutError:
+        await interaction.followup.send("❌ Timed out. Raffle NOT reset.")
+        return
+
+    # 2. Reset being done here
+    raffle_data["tickets"] = {}
+    raffle_data["meta"]["total_pool_value"] = 0
+    
+    # Save immediately
+    save_json(RAFFLE_FILE, raffle_data)
+    
+    await interaction.followup.send(
+        "✅ **Raffle Reset Complete!**\n"
+        "• Ticket counts flushed to 0.\n"
+        "• Pot value reset to $0.\n"
+        "• Bot is ready to accept NEW items for the next round."
+    )
+
+
 bot.run(DISCORD_TOKEN)
+
